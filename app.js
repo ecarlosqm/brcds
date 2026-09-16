@@ -1,0 +1,188 @@
+(() => {
+  'use strict';
+  const products = [];
+  const $ = (selector) => document.querySelector(selector);
+  let sequence = 0;
+  let toastTimer;
+  const available = typeof window.JsBarcode === 'function';
+  function notify(message) {
+    $('#status').textContent = message;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { $('#status').textContent = ''; }, 6500);
+  }
+  function newCode() {
+    let code;
+    do {
+      const random = new Uint32Array(2);
+      crypto.getRandomValues(random);
+      code = '20' + String(random[0] % 100000).padStart(5, '0') + String(random[1] % 100000).padStart(5, '0');
+    } while (products.some(product => product.code === code));
+    return code;
+  }
+  function validate(product) {
+    if (!product.name.trim()) return 'Escribe el nombre del producto.';
+    if (!/^[A-Za-z0-9-]{1,14}$/.test(product.code)) return 'Usa de 1 a 14 letras, números o guiones.';
+    if (products.some(other => other !== product && other.code === product.code)) return 'Este código ya está en la hoja.';
+    if (!available) return 'No se cargó la biblioteca de códigos. Revisa tu conexión e intenta recargar.';
+    if (product.barcodeError) return 'No se pudo generar este código.';
+    return '';
+  }
+  function updateStatus() {
+    $('#count').textContent = products.length;
+    $('#page-count').textContent = Math.max(1, Math.ceil(products.length / 12));
+    $('#print').disabled = !products.length || products.some(product => validate(product));
+    $('#clear').disabled = !products.length;
+    products.forEach(product => {
+      const card = document.getElementById(`product-${product.id}`);
+      const error = validate(product);
+      card.querySelector('.error').textContent = error;
+      card.classList.toggle('invalid', Boolean(error));
+      card.querySelector('.name').setAttribute('aria-invalid', String(!product.name.trim()));
+      card.querySelector('.code').setAttribute('aria-invalid', String(Boolean(error && product.name.trim())));
+    });
+  }
+  function barcode(product, svg) {
+    svg.replaceChildren();
+    product.barcodeError = false;
+    if (!available || !/^[A-Za-z0-9-]{1,14}$/.test(product.code)) return;
+    try {
+      JsBarcode(svg, product.code, { format: 'CODE128', width: 2, height: 48, displayValue: false, margin: 20, marginTop: 0, marginBottom: 0, background: '#fff', lineColor: '#000' });
+      const width = Number(svg.getAttribute('width'));
+      const height = Number(svg.getAttribute('height'));
+      svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+      svg.setAttribute('preserveAspectRatio', 'none');
+      svg.removeAttribute('width');
+      svg.removeAttribute('height');
+      svg.setAttribute('aria-label', `Código de barras ${product.code}`);
+    } catch { product.barcodeError = true; }
+  }
+  function makeProduct(product) {
+    const card = document.createElement('article');
+    card.className = 'product';
+    card.id = `product-${product.id}`;
+    card.innerHTML = `<button class="delete no-print" title="Eliminar producto" aria-label="Eliminar producto">×</button><button class="photo-button" title="Agregar o cambiar foto" aria-label="Agregar o cambiar foto"><span class="photo-icon" aria-hidden="true">＋</span><span>Agregar foto</span></button><input class="photo-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden><textarea class="name" rows="2" maxlength="60" placeholder="Nombre del producto" aria-label="Nombre del producto"></textarea><p class="print-name"></p><svg class="barcode" role="img"></svg><div class="code-row"><input class="code" maxlength="14" spellcheck="false" autocomplete="off" aria-label="Código de barras"><button class="regenerate" title="Generar otro código" aria-label="Generar otro código">↻</button></div><p class="print-code"></p><p class="error no-print" id="error-${product.id}"></p>`;
+    const name = card.querySelector('.name');
+    const code = card.querySelector('.code');
+    const svg = card.querySelector('.barcode');
+    const photo = card.querySelector('.photo-button');
+    const file = card.querySelector('.photo-input');
+    name.value = product.name;
+    code.value = product.code;
+    name.setAttribute('aria-describedby', `error-${product.id}`);
+    code.setAttribute('aria-describedby', `error-${product.id}`);
+    card.querySelector('.print-name').textContent = product.name;
+    card.querySelector('.print-code').textContent = product.code;
+    function showPhoto() {
+      const img = new Image();
+      img.alt = product.name || 'Foto del producto';
+      img.src = product.photo;
+      photo.replaceChildren(img);
+    }
+    if (product.photo) showPhoto();
+    name.addEventListener('input', () => {
+      product.name = name.value.replace(/\n/g, ' ');
+      name.value = product.name;
+      card.querySelector('.print-name').textContent = product.name;
+      if (photo.querySelector('img')) photo.querySelector('img').alt = product.name;
+      updateStatus();
+    });
+    code.addEventListener('input', () => {
+      product.code = code.value;
+      card.querySelector('.print-code').textContent = product.code;
+      barcode(product, svg);
+      updateStatus();
+    });
+    card.querySelector('.regenerate').addEventListener('click', () => {
+      product.code = newCode();
+      code.value = product.code;
+      card.querySelector('.print-code').textContent = product.code;
+      barcode(product, svg);
+      updateStatus();
+      notify('Se generó un nuevo código.');
+    });
+    card.querySelector('.delete').addEventListener('click', () => {
+      const index = products.indexOf(product);
+      if (product.photo) URL.revokeObjectURL(product.photo);
+      products.splice(index, 1);
+      render();
+      (document.querySelectorAll('.name')[Math.min(index, products.length - 1)] || $('#add')).focus();
+      notify('Producto eliminado.');
+    });
+    photo.addEventListener('click', () => file.click());
+    file.addEventListener('change', async () => {
+      const selected = file.files[0];
+      file.value = '';
+      if (!selected) return;
+      if (!['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(selected.type) || selected.size > 15 * 1024 * 1024) {
+        notify('Elige una imagen JPG, PNG, WebP o GIF de hasta 15 MB.');
+        return;
+      }
+      const url = URL.createObjectURL(selected);
+      const image = new Image();
+      image.src = url;
+      try {
+        await image.decode();
+        if (!products.includes(product)) { URL.revokeObjectURL(url); return; }
+        if (product.photo) URL.revokeObjectURL(product.photo);
+        product.photo = url;
+        showPhoto();
+      } catch { URL.revokeObjectURL(url); notify('No se pudo abrir la imagen. Prueba con otra foto.'); }
+    });
+    barcode(product, svg);
+    return card;
+  }
+  function render() {
+    const sheets = $('#sheets');
+    sheets.replaceChildren();
+    const pages = Math.max(1, Math.ceil(products.length / 12));
+    for (let page = 0; page < pages; page++) {
+      const paper = document.createElement('section');
+      paper.className = 'paper';
+      paper.setAttribute('aria-label', `Hoja ${page + 1}`);
+      paper.innerHTML = `<div class="paper-head"><strong>PRODUCTOS · CÓDIGOS DE BARRAS</strong><span>MI TIENDA</span></div><div class="product-grid"></div><div class="paper-foot"><span>en hoja</span><span>Hoja ${page + 1} de ${pages}</span></div>`;
+      const grid = paper.querySelector('.product-grid');
+      const slice = products.slice(page * 12, (page + 1) * 12);
+      slice.forEach(product => grid.append(makeProduct(product)));
+      for (let slot = slice.length; slot < 12; slot++) {
+        const empty = document.createElement(slot === slice.length ? 'button' : 'div');
+        empty.className = slot === slice.length ? 'add-tile no-print' : 'empty-slot';
+        if (slot === slice.length) {
+          empty.innerHTML = `<span class="plus-circle" aria-hidden="true">＋</span><span>Agregar producto</span><small>Foto, nombre y código</small>`;
+          empty.addEventListener('click', addProduct);
+        } else empty.setAttribute('aria-hidden', 'true');
+        grid.append(empty);
+      }
+      sheets.append(paper);
+    }
+    updateStatus();
+  }
+  function addProduct() {
+    const product = { id: ++sequence, name: '', code: newCode(), photo: null };
+    products.push(product);
+    render();
+    document.querySelector(`#product-${product.id} .name`).focus();
+  }
+  $('#add').addEventListener('click', addProduct);
+  $('#print').addEventListener('click', async () => {
+    if (!products.length || products.some(product => validate(product))) return;
+    await Promise.all([...document.images].map(image => image.decode().catch(() => {})));
+    window.print();
+  });
+  $('#clear').addEventListener('click', () => {
+    $('#clear-dialog').returnValue = '';
+    $('#clear-dialog').showModal();
+  });
+  $('#clear-dialog').addEventListener('close', () => {
+    if ($('#clear-dialog').returnValue !== 'clear') return;
+    products.forEach(product => { if (product.photo) URL.revokeObjectURL(product.photo); });
+    products.length = 0;
+    render();
+    $('#add').focus();
+    notify('La hoja está lista para empezar de nuevo.');
+  });
+  window.addEventListener('beforeunload', event => {
+    if (products.length) { event.preventDefault(); event.returnValue = ''; }
+  });
+  render();
+  if (!available) notify('No se cargó la biblioteca de códigos. Revisa tu conexión e intenta recargar.');
+})();

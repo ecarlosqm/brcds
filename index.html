@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Crea e imprime hojas de productos con imágenes y códigos de barras, directamente en tu navegador.">
+  <title>En hoja · Códigos para tu tienda</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%235d45cf'/%3E%3Cpath stroke='white' stroke-width='2' d='M8 9v14m4-14v14m5-14v14m3-14v14m4-14v14'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/jsbarcode@3.12.1/dist/JsBarcode.all.min.js" integrity="sha384-GOJorjMf7THaQGDBFbJts7rGe9W614DJjXutlminElhJN5jEGek16fjuWiDdlFnI" crossorigin="anonymous"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <header class="app-header no-print">
+    <a class="brand" href="./" aria-label="En hoja, inicio"><span class="brand-mark" aria-hidden="true">▥</span> en hoja<span class="brand-detail">PARA TU TIENDA</span></a>
+    <span class="session-label">Solo por esta sesión</span>
+  </header>
+  <main>
+    <div class="heading no-print"><div><p class="eyebrow">DEL MOSTRADOR AL PAPEL</p><h1>Tus productos, en una hoja.</h1><p>Agrega, edita e imprime. Así de sencillo.</p></div><button id="print" class="button primary" disabled><span aria-hidden="true">↥</span> Imprimir hoja</button></div>
+    <div class="workspace">
+      <aside class="no-print">
+        <div class="side-title"><span class="small-icon" aria-hidden="true">▤</span><h2>Tu hoja actual</h2></div>
+        <dl class="sheet-details"><div><dt>Formato</dt><dd>Carta</dd></div><div><dt>Distribución</dt><dd>3 × 4</dd></div><div><dt>Productos</dt><dd id="count">0</dd></div><div><dt>Hojas</dt><dd id="page-count">1</dd></div></dl>
+        <button id="add" class="button primary full"><span aria-hidden="true">＋</span> Agregar producto</button>
+        <button id="clear" class="button subtle full" disabled>Vaciar hoja</button>
+        <div class="instructions"><p class="eyebrow">TODO SE EDITA AQUÍ</p><ol><li><span>1</span><div><strong>Agrega tu producto</strong><p>Sube una foto y escribe su nombre en la cuadrícula.</p></div></li><li><span>2</span><div><strong>Asigna un código</strong><p>Usa el que generamos o escribe uno propio.</p></div></li><li><span>3</span><div><strong>Listo para imprimir</strong><p>Selecciona papel carta y escala al 100 %.</p></div></li></ol></div>
+        <div class="note"><strong>Un código, un producto.</strong><p>Registra el mismo código en tu punto de venta para reconocerlo al escanear. Usamos el formato CODE128.</p></div>
+        <p class="session-note">Nada se guarda. Al recargar o cerrar, la hoja se pierde.</p>
+      </aside>
+      <section class="paper-area" aria-label="Editor de hojas"><div class="paper-toolbar no-print"><span><span class="paper-dot"></span> VISTA DE IMPRESIÓN</span><span>Carta · 21.59 × 27.94 cm</span></div><div id="sheets"></div><p class="paper-caption no-print">Lo que ves en la hoja es lo que imprimes. Los controles no aparecerán.</p></section>
+    </div>
+  </main>
+  <div id="status" class="toast no-print" role="status" aria-live="polite"></div>
+  <dialog id="clear-dialog"><h2>¿Vaciar la hoja?</h2><p>Se eliminarán todos los productos de esta sesión.</p><form method="dialog"><button class="button subtle" value="cancel">Cancelar</button><button class="button primary" value="clear">Sí, vaciar</button></form></dialog>
+  <noscript>Activa JavaScript para crear tu hoja de productos.</noscript>
+</body>
+</html>
