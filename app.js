@@ -4,6 +4,7 @@
   const $ = (selector) => document.querySelector(selector);
   let sequence = 0;
   let toastTimer;
+  let pendingBackup = null;
   const available = typeof window.JsBarcode === 'function';
   function notify(message) {
     $('#status').textContent = message;
@@ -32,6 +33,7 @@
     $('#page-count').textContent = Math.max(1, Math.ceil(products.length / 12));
     $('#print').disabled = !products.length || products.some(product => validate(product));
     $('#clear').disabled = !products.length;
+    $('#backup-save').disabled = !products.length;
     products.forEach(product => {
       const card = document.getElementById(`product-${product.id}`);
       const error = validate(product);
@@ -46,10 +48,10 @@
     product.barcodeError = false;
     if (!available || !/^[A-Za-z0-9-]{1,14}$/.test(product.code)) return;
     try {
-      JsBarcode(svg, product.code, { format: 'CODE128', width: 2, height: 48, displayValue: false, margin: 20, marginTop: 0, marginBottom: 0, background: '#fff', lineColor: '#000' });
-      const width = Number(svg.getAttribute('width'));
-      const height = Number(svg.getAttribute('height'));
-      svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+      JsBarcode(svg, product.code, { format: 'CODE128', width: 2, height: 48, displayValue: false, margin: 0, marginLeft: 20, marginRight: 20, marginTop: 0, marginBottom: 0, background: '#fff', lineColor: '#000' });
+      // JsBarcode already creates a valid viewBox. Its width/height attributes
+      // include "px"; converting them with Number() produces NaN and clips bars.
+      // Keep the library's coordinate system, including both quiet zones.
       svg.setAttribute('preserveAspectRatio', 'none');
       svg.removeAttribute('width');
       svg.removeAttribute('height');
@@ -162,6 +164,53 @@
     render();
     document.querySelector(`#product-${product.id} .name`).focus();
   }
+  function setBusy(busy) {
+    document.querySelector('.workspace').inert = busy;
+    document.querySelector('.heading').inert = busy;
+  }
+  function restoreBackup(records) {
+    products.forEach(product => { if (product.photo) URL.revokeObjectURL(product.photo); });
+    products.length = 0;
+    records.forEach(record => products.push({ ...record, id: ++sequence }));
+    render();
+    notify(`Respaldo cargado: ${products.length} productos.`);
+  }
+  $('#backup-save').addEventListener('click', async () => {
+    setBusy(true);
+    try {
+      const blob = await SheetBackup.serialize(products);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `en-hoja-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      notify('Respaldo preparado. Revisa las descargas de tu navegador.');
+    } catch (error) { notify(error.message || 'No se pudo crear el respaldo.'); }
+    finally { setBusy(false); }
+  });
+  $('#backup-load').addEventListener('click', () => $('#backup-file').click());
+  $('#backup-file').addEventListener('change', async event => {
+    const file = event.target.files[0];
+    event.target.value = '';
+    if (!file) return;
+    setBusy(true);
+    try {
+      const records = await SheetBackup.parse(file);
+      if (products.length) {
+        pendingBackup = records;
+        $('#restore-dialog').returnValue = '';
+        $('#restore-dialog').showModal();
+      } else restoreBackup(records);
+    } catch (error) { notify(error.message || 'No se pudo cargar el respaldo.'); }
+    finally { setBusy(false); }
+  });
+  $('#restore-dialog').addEventListener('close', () => {
+    if ($('#restore-dialog').returnValue === 'restore' && pendingBackup) restoreBackup(pendingBackup);
+    pendingBackup = null;
+  });
   $('#add').addEventListener('click', addProduct);
   $('#print').addEventListener('click', async () => {
     if (!products.length || products.some(product => validate(product))) return;
