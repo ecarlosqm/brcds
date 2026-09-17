@@ -5,6 +5,8 @@
   let sequence = 0;
   let toastTimer;
   let pendingBackup = null;
+  let layout = { columns: 3, rows: 4 };
+  const capacity = () => layout.columns * layout.rows;
   const available = typeof window.JsBarcode === 'function';
   function notify(message) {
     $('#status').textContent = message;
@@ -30,7 +32,9 @@
   }
   function updateStatus() {
     $('#count').textContent = products.length;
-    $('#page-count').textContent = Math.max(1, Math.ceil(products.length / 12));
+    $('#page-count').textContent = Math.max(1, Math.ceil(products.length / capacity()));
+    $('#distribution').textContent = $('#print-distribution').textContent = `${layout.columns} × ${layout.rows}`;
+    $('#grid-capacity').textContent = `${capacity()} productos por hoja`;
     $('#print').disabled = !products.length || products.some(product => validate(product));
     $('#clear').disabled = !products.length;
     $('#backup-save').disabled = !products.length;
@@ -136,16 +140,20 @@
   function render() {
     const sheets = $('#sheets');
     sheets.replaceChildren();
-    const pages = Math.max(1, Math.ceil(products.length / 12));
+    const perPage = capacity();
+    const pages = Math.max(1, Math.ceil(products.length / perPage));
     for (let page = 0; page < pages; page++) {
       const paper = document.createElement('section');
       paper.className = 'paper';
+      paper.style.setProperty('--print-columns', layout.columns);
+      paper.style.setProperty('--print-rows', layout.rows);
+      paper.style.setProperty('--print-scale', Math.min(3 / layout.columns, 4 / layout.rows));
       paper.setAttribute('aria-label', `Hoja ${page + 1}`);
       paper.innerHTML = `<div class="paper-head"><strong>PRODUCTOS · CÓDIGOS DE BARRAS</strong><span>MI TIENDA</span></div><div class="product-grid"></div><div class="paper-foot"><span>en hoja</span><span>Hoja ${page + 1} de ${pages}</span></div>`;
       const grid = paper.querySelector('.product-grid');
-      const slice = products.slice(page * 12, (page + 1) * 12);
+      const slice = products.slice(page * perPage, (page + 1) * perPage);
       slice.forEach(product => grid.append(makeProduct(product)));
-      for (let slot = slice.length; slot < 12; slot++) {
+      for (let slot = slice.length; slot < perPage; slot++) {
         const empty = document.createElement(slot === slice.length ? 'button' : 'div');
         empty.className = slot === slice.length ? 'add-tile no-print' : 'empty-slot';
         if (slot === slice.length) {
@@ -168,17 +176,20 @@
     document.querySelector('.workspace').inert = busy;
     document.querySelector('.heading').inert = busy;
   }
-  function restoreBackup(records) {
+  function restoreBackup({ products: records, layout: restoredLayout }) {
     products.forEach(product => { if (product.photo) URL.revokeObjectURL(product.photo); });
     products.length = 0;
     records.forEach(record => products.push({ ...record, id: ++sequence }));
+    layout = restoredLayout;
+    $('#grid-columns').value = layout.columns;
+    $('#grid-rows').value = layout.rows;
     render();
     notify(`Respaldo cargado: ${products.length} productos.`);
   }
   $('#backup-save').addEventListener('click', async () => {
     setBusy(true);
     try {
-      const blob = await SheetBackup.serialize(products);
+      const blob = await SheetBackup.serialize(products, layout);
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -212,6 +223,16 @@
     pendingBackup = null;
   });
   $('#add').addEventListener('click', addProduct);
+  function changeLayout() {
+    const columns = Number($('#grid-columns').value);
+    const rows = Number($('#grid-rows').value);
+    if (!Number.isInteger(columns) || columns < 3 || columns > 6 ||
+        !Number.isInteger(rows) || rows < 4 || rows > 8) return;
+    layout = { columns, rows };
+    render();
+  }
+  $('#grid-columns').addEventListener('change', changeLayout);
+  $('#grid-rows').addEventListener('change', changeLayout);
   $('#print').addEventListener('click', async () => {
     if (!products.length || products.some(product => validate(product))) return;
     await Promise.all([...document.images].map(image => image.decode().catch(() => {})));

@@ -13,7 +13,7 @@
 body {
   margin:0;
 }
-button,input,textarea {
+button,input,textarea,select {
   font:inherit;
 }
 button,a,input,textarea {
@@ -171,6 +171,54 @@ h2 {
   margin:0;
   font-weight:600;
 }
+.grid-settings {
+  min-width:0;
+  margin:0 0 20px;
+  padding:14px;
+  border:1px solid var(--line);
+  border-radius:8px;
+}
+.grid-settings legend {
+  padding:0 5px;
+  font-size:12px;
+  font-weight:600;
+}
+.grid-selects {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
+  align-items:end;
+  gap:10px;
+}
+.grid-selects>div {
+  display:grid;
+  gap:6px;
+}
+.grid-selects label {
+  font-size:12px;
+  color:var(--muted);
+}
+.grid-selects>span {
+  padding-bottom:12px;
+  color:var(--muted);
+}
+.grid-selects select {
+  width:100%;
+  min-height:44px;
+  padding:8px;
+  background:white;
+  color:#272631;
+  border:1px solid #c9bfeb;
+  border-radius:6px;
+}
+.grid-selects select:focus-visible {
+  outline:2px solid var(--purple);
+  outline-offset:2px;
+}
+.grid-settings p {
+  margin:12px 0 0;
+  font-size:12px;
+  color:var(--muted);
+}
 .instructions {
   border-top:1px solid var(--line);
   margin-top:23px;
@@ -258,8 +306,7 @@ li p {
 }
 .paper {
   background:white;
-  aspect-ratio:8.5/11;
-  padding:4.7%;
+  padding:20px;
   box-shadow:0 3px 18px #29253e09,0 0 0 1px #e6e5ec;
   margin-bottom:24px;
   display:flex;
@@ -287,16 +334,16 @@ li p {
   letter-spacing:.2px;
 }
 .product-grid {
+  --card-height:254px;
   display:grid;
   grid-template-columns:repeat(3,minmax(0,1fr));
-  grid-template-rows:repeat(4,minmax(0,1fr));
-  flex:1;
+  align-items:stretch;
   gap:0;
 }
 .product {
   position:relative;
   min-width:0;
-  min-height:0;
+  min-height:var(--card-height);
   border:1px solid #e9e7ee;
   margin:0 -1px -1px 0;
   display:flex;
@@ -316,8 +363,8 @@ li p {
   color:#aaa4b7;
   border-radius:6px;
   width:100%;
-  height:40%;
-  min-height:28px;
+  height:96px;
+  flex-shrink:0;
   display:flex;
   flex-direction:column;
   gap:4px;
@@ -436,8 +483,7 @@ li p {
   display:none;
 }
 .empty-slot {
-  border:1px dashed #eeecf2;
-  margin:0 -1px -1px 0;
+  display:none;
 }
 .add-tile {
   background:#faf9fe;
@@ -451,7 +497,7 @@ li p {
   font-size:12px;
   margin:0 -1px -1px 0;
   z-index:1;
-  min-height:130px;
+  min-height:var(--card-height);
 }
 .add-tile:hover {
   background:#efebfc;
@@ -514,6 +560,9 @@ dialog form {
   margin-top:25px;
 }
 @media(min-width:1350px) {
+  .product-grid {
+    --card-height:300px;
+  }
   main {
     max-width:1380px;
   }
@@ -532,6 +581,7 @@ dialog form {
     font-size:12px;
   }
   .photo-button {
+    height:112px;
     font-size:12px;
   }
   .product {
@@ -543,12 +593,13 @@ dialog form {
   main {
     padding:30px 24px;
   }
-  .workspace {
-    grid-template-columns:190px minmax(0,1fr);
-    gap:22px;
+  .product-grid {
+    --card-height:206px;
+    grid-template-columns:repeat(2,minmax(0,1fr));
   }
   .workspace {
     grid-template-columns:190px minmax(0,1fr);
+    gap:22px;
   }
   h1 {
     font-size:28px;
@@ -570,7 +621,7 @@ dialog form {
     font-size:9px;
   }
   .photo-button {
-    height:34%;
+    height:76px;
   }
   .instructions {
     margin-top:15px;
@@ -638,17 +689,13 @@ dialog form {
     width:100%;
   }
   .paper {
-    aspect-ratio:auto;
     padding:18px 13px;
-    min-height:590px;
   }
   .product-grid {
+    --card-height:242px;
     grid-template-columns:repeat(2,minmax(0,1fr));
-    grid-template-rows:none;
-    flex:initial;
   }
   .product {
-    height:220px;
     padding:14px 12px;
     gap:5px;
   }
@@ -666,12 +713,6 @@ dialog form {
   .code {
     font-size:11px;
   }
-  .empty-slot {
-    display:none;
-  }
-  .add-tile {
-    min-height:220px;
-  }
   .paper-head {
     font-size:8px;
   }
@@ -684,6 +725,11 @@ dialog form {
   }
   .paper-toolbar>span:last-child {
     font-size:10px;
+  }
+}
+@media screen and (max-width:380px) {
+  .product-grid {
+    grid-template-columns:minmax(0,1fr);
   }
 }
 @page {
@@ -739,21 +785,22 @@ dialog form {
   .product-grid {
     display:grid;
     flex:1;
-    grid-template-columns:repeat(3,minmax(0,1fr));
-    grid-template-rows:repeat(4,minmax(0,1fr));
+    min-height:0;
+    grid-template-columns:repeat(var(--print-columns,3),minmax(0,1fr));
+    grid-template-rows:repeat(var(--print-rows,4),minmax(0,1fr));
   }
   .product {
     height:auto;
     min-height:0;
-    padding:.13in .12in .1in;
-    gap:.05in;
+    padding:calc(.1in * var(--print-scale,1)) calc(.12in * var(--print-scale,1));
+    gap:calc(.04in * var(--print-scale,1));
     outline:none!important;
     background:white!important;
     border-color:#ddd;
   }
   .photo-button {
-    height:.88in;
-    min-height:.88in;
+    height:calc(.88in * var(--print-scale,1));
+    min-height:calc(.88in * var(--print-scale,1));
     background:white;
     border:0;
     color:transparent;
@@ -774,23 +821,24 @@ dialog form {
     white-space:pre-wrap;
     overflow-wrap:anywhere;
     width:100%;
-    height:.46in;
+    height:calc(.46in * var(--print-scale,1));
+    flex-shrink:0;
     line-height:1.2;
-    font-size:9pt;
+    font-size:calc(9pt * var(--print-scale,1));
     font-weight:600;
     text-align:center;
     margin:0;
   }
   .barcode {
-    height:.49in;
+    height:calc(.49in * var(--print-scale,1));
     width:100%;
     flex-shrink:0;
   }
   .print-code {
     display:block;
     text-align:center;
-    font:9pt ui-monospace,monospace;
-    letter-spacing:.7pt;
+    font:calc(9pt * var(--print-scale,1)) ui-monospace,monospace;
+    letter-spacing:calc(.7pt * var(--print-scale,1));
     margin:0;
   }
   .product.invalid .barcode {

@@ -2,6 +2,13 @@
 (() => {
   'use strict';
   const MAX_BYTES = 100 * 1024 * 1024;
+  function validateLayout(layout = { columns: 3, rows: 4 }) {
+    if (!layout || !Number.isInteger(layout.columns) || layout.columns < 3 || layout.columns > 6 ||
+        !Number.isInteger(layout.rows) || layout.rows < 4 || layout.rows > 8) {
+      throw new Error('El respaldo contiene una cuadrícula fuera del rango de 3 × 4 a 6 × 8.');
+    }
+    return { columns: layout.columns, rows: layout.rows };
+  }
   function validate(data) {
     if (!data || data.format !== 'en-hoja' || data.version !== 1 || !Array.isArray(data.products)) {
       throw new Error('Este archivo no es un respaldo compatible de En hoja.');
@@ -27,11 +34,11 @@
       reader.readAsDataURL(blob);
     });
   }
-  async function serialize(products) {
+  async function serialize(products, layout) {
     const records = await Promise.all(products.map(async ({ name, code, photo }) => ({
       name, code, photo: photo ? (photo.startsWith('data:') ? photo : await readPhoto(await (await fetch(photo)).blob())) : null
     })));
-    const data = { format: 'en-hoja', version: 1, products: records };
+    const data = { format: 'en-hoja', version: 1, products: records, layout: validateLayout(layout) };
     validate(data);
     const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
     if (blob.size > MAX_BYTES) throw new Error('El respaldo supera 100 MB. Usa fotos más pequeñas.');
@@ -43,6 +50,7 @@
     try { data = JSON.parse(await file.text()); }
     catch { throw new Error('No se pudo leer el respaldo. Selecciona un archivo .json de En hoja.'); }
     const records = validate(data);
+    const layout = validateLayout(data.layout);
     // Decode before replacing the current sheet; one damaged photo rejects the import.
     for (const item of records) {
       if (!item.photo) continue;
@@ -51,7 +59,7 @@
       try { await image.decode(); }
       catch { throw new Error('El respaldo contiene una foto dañada. La hoja actual no se modificó.'); }
     }
-    return records;
+    return { products: records, layout };
   }
   window.SheetBackup = { serialize, parse };
 })();

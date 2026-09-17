@@ -6,10 +6,10 @@
   <meta name="description" content="Crea e imprime hojas de productos con imágenes y códigos de barras, directamente en tu navegador.">
   <title>En hoja · Códigos para tu tienda</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%235d45cf'/%3E%3Cpath stroke='white' stroke-width='2' d='M8 9v14m4-14v14m5-14v14m3-14v14m4-14v14'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=2">
+  <link rel="stylesheet" href="styles.css?v=5">
   <script defer src="https://cdn.jsdelivr.net/npm/jsbarcode@3.12.1/dist/JsBarcode.all.min.js" integrity="sha384-GOJorjMf7THaQGDBFbJts7rGe9W614DJjXutlminElhJN5jEGek16fjuWiDdlFnI" crossorigin="anonymous"></script>
-  <script defer src="backup.js"></script>
-  <script defer src="app.js"></script>
+  <script defer src="backup.js?v=2"></script>
+  <script defer src="app.js?v=2"></script>
 </head>
 <body>
   <header class="app-header no-print">
@@ -21,7 +21,8 @@
     <div class="workspace">
       <aside class="no-print">
         <div class="side-title"><span class="small-icon" aria-hidden="true">▤</span><h2>Tu hoja actual</h2></div>
-        <dl class="sheet-details"><div><dt>Formato</dt><dd>Carta</dd></div><div><dt>Distribución</dt><dd>3 × 4</dd></div><div><dt>Productos</dt><dd id="count">0</dd></div><div><dt>Hojas</dt><dd id="page-count">1</dd></div></dl>
+        <dl class="sheet-details"><div><dt>Formato</dt><dd>Carta</dd></div><div><dt>Distribución</dt><dd id="distribution">3 × 4</dd></div><div><dt>Productos</dt><dd id="count">0</dd></div><div><dt>Hojas</dt><dd id="page-count">1</dd></div></dl>
+        <fieldset class="grid-settings" aria-describedby="grid-capacity"><legend>Cuadrícula de impresión</legend><div class="grid-selects"><div><label for="grid-columns">Columnas</label><select id="grid-columns"><option>3</option><option>4</option><option>5</option><option>6</option></select></div><span aria-hidden="true">×</span><div><label for="grid-rows">Filas</label><select id="grid-rows"><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option></select></div></div><p id="grid-capacity" aria-live="polite">12 productos por hoja</p></fieldset>
         <button id="add" class="button primary full"><span aria-hidden="true">＋</span> Agregar producto</button>
         <button id="clear" class="button subtle full" disabled>Vaciar hoja</button>
         <section class="backup-actions" aria-labelledby="backup-title">
@@ -47,7 +48,7 @@
         <div class="note"><strong>Un código, un producto.</strong><p>Registra el mismo código en tu punto de venta para reconocerlo al escanear. Usamos el formato CODE128.</p></div>
         <p class="session-note">Descarga un respaldo para conservar la hoja antes de recargar o cerrar.</p>
       </aside>
-      <section class="paper-area" aria-label="Editor de hojas"><div class="paper-toolbar no-print"><span><span class="paper-dot"></span> VISTA DE IMPRESIÓN</span><span>Carta · 21.59 × 27.94 cm</span></div><div id="sheets"></div><p class="paper-caption no-print">Lo que ves en la hoja es lo que imprimes. Los controles no aparecerán.</p></section>
+      <section class="paper-area" aria-label="Editor de hojas"><div class="paper-toolbar no-print"><span><span class="paper-dot"></span> EDITOR DE PRODUCTOS</span><span>Impresión en carta</span></div><div id="sheets"></div><p class="paper-caption no-print">Recuadros adaptados a tu pantalla. Al imprimir se distribuyen en una hoja carta de <span id="print-distribution">3 × 4</span>, sin los controles.</p></section>
     </div>
   </main>
   <div id="status" class="toast no-print" role="status" aria-live="polite"></div>
