@@ -5,6 +5,121 @@
   let sequence = 0;
   let toastTimer;
   let pendingBackup = null;
+  let movingProduct = null;
+  let drag = null;
+  let scrollFrame;
+  let suppressMoveClick = false;
+
+  function cancelMove() {
+    if (drag?.handle.hasPointerCapture(drag.pointerId)) drag.handle.releasePointerCapture(drag.pointerId);
+    drag = null;
+    cancelAnimationFrame(scrollFrame);
+    movingProduct = null;
+    document.body.classList.remove('reordering', 'dragging-product');
+    document.querySelectorAll('.move-source, .move-target').forEach(el => el.classList.remove('move-source', 'move-target'));
+    document.querySelectorAll('.move-product').forEach(button => button.setAttribute('aria-pressed', 'false'));
+  }
+  function selectMove(product) {
+    cancelMove();
+    movingProduct = product;
+    document.body.classList.add('reordering');
+    const card = document.getElementById(`product-${product.id}`);
+    card.classList.add('move-source');
+    card.querySelector('.move-product').setAttribute('aria-pressed', 'true');
+  }
+  function moveProductTo(index) {
+    const product = movingProduct;
+    const from = products.indexOf(product);
+    const to = Math.min(index, products.length - 1);
+    cancelMove();
+    if (from < 0 || to < 0) return;
+    if (from !== to) {
+      products.splice(from, 1);
+      products.splice(to, 0, product);
+      render();
+      notify(`${product.name || 'Producto'}: posición ${to + 1} de ${products.length}.`);
+    }
+    document.querySelector(`#product-${product.id} .move-product`).focus({ preventScroll: true });
+  }
+  function highlightDestination(x, y) {
+    document.querySelector('.move-target')?.classList.remove('move-target');
+    const target = document.elementFromPoint(x, y)?.closest('[data-position]');
+    if (target && !target.classList.contains('move-source')) target.classList.add('move-target');
+    return target;
+  }
+  function scrollWhileDragging() {
+    if (!drag?.active) return;
+    const edge = 70;
+    const speed = drag.y < edge ? -14 : drag.y > window.innerHeight - edge ? 14 : 0;
+    if (speed) window.scrollBy(0, speed);
+    highlightDestination(drag.x, drag.y);
+    scrollFrame = requestAnimationFrame(scrollWhileDragging);
+  }
+  function setupMoveHandle(handle, product) {
+    handle.addEventListener('click', () => {
+      if (suppressMoveClick) return;
+      if (movingProduct === product) { cancelMove(); notify('Movimiento cancelado.'); return; }
+      selectMove(product);
+      notify('Elige la posición de destino o usa las flechas. Escape cancela.');
+    });
+    handle.addEventListener('keydown', event => {
+      const steps = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -1, ArrowDown: 1, Home: -products.length, End: products.length };
+      if (!(event.key in steps)) return;
+      event.preventDefault();
+      selectMove(product);
+      moveProductTo(Math.max(0, products.indexOf(product) + steps[event.key]));
+    });
+    handle.addEventListener('pointerdown', event => {
+      if (event.button !== 0 || !event.isPrimary) return;
+      drag = { product, handle, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, x: event.clientX, y: event.clientY, active: false };
+      handle.setPointerCapture(event.pointerId);
+    });
+    handle.addEventListener('pointermove', event => {
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      if (!drag.active && Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < 6) return;
+      if (!drag.active) {
+        const current = drag;
+        drag = null;
+        selectMove(product);
+        drag = current;
+        drag.active = true;
+        document.body.classList.add('dragging-product');
+        scrollFrame = requestAnimationFrame(scrollWhileDragging);
+      }
+      drag.x = event.clientX;
+      drag.y = event.clientY;
+      highlightDestination(drag.x, drag.y);
+    });
+    handle.addEventListener('pointerup', event => {
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      if (!drag.active) { drag = null; return; }
+      const target = highlightDestination(event.clientX, event.clientY);
+      suppressMoveClick = true;
+      setTimeout(() => { suppressMoveClick = false; }, 0);
+      if (target) moveProductTo(Number(target.dataset.position));
+      else { cancelMove(); notify('Movimiento cancelado.'); }
+    });
+    handle.addEventListener('pointercancel', cancelMove);
+    handle.addEventListener('lostpointercapture', () => { if (drag) cancelMove(); });
+  }
+  // Capture destination clicks before photo, delete, or add actions can fire.
+  $('#sheets').addEventListener('click', event => {
+    if (suppressMoveClick) { event.preventDefault(); event.stopPropagation(); return; }
+    if (!movingProduct) return;
+    const target = event.target.closest('[data-position]');
+    if (!target || target.id === `product-${movingProduct.id}`) return;
+    event.preventDefault();
+    event.stopPropagation();
+    moveProductTo(Number(target.dataset.position));
+  }, true);
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && movingProduct) {
+      const product = movingProduct;
+      cancelMove();
+      document.querySelector(`#product-${product.id} .move-product`)?.focus({ preventScroll: true });
+      notify('Movimiento cancelado.');
+    }
+  });
   let layout = { columns: 3, rows: 4 };
   const capacity = () => layout.columns * layout.rows;
   const available = typeof window.JsBarcode === 'function';
@@ -66,7 +181,9 @@
     const card = document.createElement('article');
     card.className = 'product';
     card.id = `product-${product.id}`;
-    card.innerHTML = `<button class="delete no-print" title="Eliminar producto" aria-label="Eliminar producto">×</button><button class="photo-button" title="Agregar o cambiar foto" aria-label="Agregar o cambiar foto"><span class="photo-icon" aria-hidden="true">＋</span><span>Agregar foto</span></button><input class="photo-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden><textarea class="name" rows="2" maxlength="60" placeholder="Nombre del producto" aria-label="Nombre del producto"></textarea><p class="print-name"></p><svg class="barcode" role="img"></svg><div class="code-row"><input class="code" maxlength="14" spellcheck="false" autocomplete="off" aria-label="Código de barras"><button class="regenerate" title="Generar otro código" aria-label="Generar otro código">↻</button></div><p class="print-code"></p><p class="error no-print" id="error-${product.id}"></p>`;
+    card.dataset.position = products.indexOf(product);
+    card.innerHTML = `<button class="move-product no-print" type="button" title="Arrastrar o elegir destino; flechas para mover" aria-label="Mover producto" aria-describedby="reorder-help" aria-pressed="false">⠿</button><button class="delete no-print" title="Eliminar producto" aria-label="Eliminar producto">×</button><button class="photo-button" title="Agregar o cambiar foto" aria-label="Agregar o cambiar foto"><span class="photo-icon" aria-hidden="true">＋</span><span>Agregar foto</span></button><input class="photo-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden><textarea class="name" rows="2" maxlength="60" placeholder="Nombre del producto" aria-label="Nombre del producto"></textarea><p class="print-name"></p><svg class="barcode" role="img"></svg><div class="code-row"><input class="code" maxlength="14" spellcheck="false" autocomplete="off" aria-label="Código de barras"><button class="regenerate" title="Generar otro código" aria-label="Generar otro código">↻</button></div><p class="print-code"></p><p class="error no-print" id="error-${product.id}"></p>`;
+    setupMoveHandle(card.querySelector('.move-product'), product);
     const name = card.querySelector('.name');
     const code = card.querySelector('.code');
     const svg = card.querySelector('.barcode');
@@ -138,6 +255,7 @@
     return card;
   }
   function render() {
+    cancelMove();
     const sheets = $('#sheets');
     sheets.replaceChildren();
     const perPage = capacity();
@@ -157,6 +275,7 @@
         const empty = document.createElement(slot === slice.length ? 'button' : 'div');
         empty.className = slot === slice.length ? 'add-tile no-print' : 'empty-slot';
         if (slot === slice.length) {
+          empty.dataset.position = products.length;
           empty.innerHTML = `<span class="plus-circle" aria-hidden="true">＋</span><span>Agregar producto</span><small>Foto, nombre y código</small>`;
           empty.addEventListener('click', addProduct);
         } else empty.setAttribute('aria-hidden', 'true');

@@ -32,3 +32,12 @@ test('invalid grid settings reject the backup before restoration', async () => {
     await assert.rejects(backup.parse(file({ format: 'en-hoja', version: 1, products, layout })), /cuadrícula/);
   }
 });
+
+test('backup preserves reordered products across page boundaries', async () => {
+  const records = Array.from({ length: 13 }, (_, index) => ({
+    name: `Producto ${index + 1}`, code: `CODE-${index + 1}`, photo: null
+  }));
+  const reordered = [...records.slice(1), records[0]];
+  const restored = await backup.parse(await backup.serialize(reordered, { columns: 3, rows: 4 }));
+  assert.deepEqual(plain(restored.products), reordered);
+});

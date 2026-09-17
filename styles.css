@@ -336,7 +336,7 @@ li p {
 .product-grid {
   --card-height:254px;
   display:grid;
-  grid-template-columns:repeat(3,minmax(0,1fr));
+  grid-template-columns:repeat(var(--print-columns,3),minmax(0,1fr));
   align-items:stretch;
   gap:0;
 }
@@ -567,8 +567,7 @@ dialog form {
     max-width:1380px;
   }
   .workspace {
-    grid-template-columns:255px minmax(0,816px);
-    justify-content:space-between;
+    grid-template-columns:255px minmax(0,1fr);
   }
   .name {
     font-size:14px;
@@ -595,7 +594,6 @@ dialog form {
   }
   .product-grid {
     --card-height:206px;
-    grid-template-columns:repeat(2,minmax(0,1fr));
   }
   .workspace {
     grid-template-columns:190px minmax(0,1fr);
@@ -693,7 +691,6 @@ dialog form {
   }
   .product-grid {
     --card-height:242px;
-    grid-template-columns:repeat(2,minmax(0,1fr));
   }
   .product {
     padding:14px 12px;
@@ -725,11 +722,6 @@ dialog form {
   }
   .paper-toolbar>span:last-child {
     font-size:10px;
-  }
-}
-@media screen and (max-width:380px) {
-  .product-grid {
-    grid-template-columns:minmax(0,1fr);
   }
 }
 @page {
@@ -968,4 +960,67 @@ dialog form {
 }
 @media (prefers-reduced-motion: reduce) {
   .backup-button { transition: none; }
+}
+
+/* A dedicated handle keeps editing and photo selection separate from moving. */
+.reorder-help {
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.move-product {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  z-index: 2;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid #d7cdee;
+  border-radius: 6px;
+  background: white;
+  color: var(--purple);
+  font-size: 24px;
+  line-height: 1;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+@media screen {
+  .product.move-source {
+    outline: 2px solid var(--purple);
+    outline-offset: -2px;
+    background: #f0edf9;
+  }
+  .move-product[aria-pressed="true"] {
+    background: var(--purple);
+    color: white;
+  }
+  .reordering [data-position]:not(.move-source):hover,
+  .reordering .move-target {
+    outline: 3px dashed var(--purple);
+    outline-offset: -4px;
+    background: #ece7ff;
+  }
+  .reordering [data-position], .reordering [data-position] * {
+    cursor: pointer;
+  }
+  .dragging-product, .dragging-product * {
+    cursor: grabbing !important;
+    user-select: none;
+  }
+}
+
+/* Fit editable cards without exceeding the configured column count. */
+@media screen {
+  .paper-area {
+    min-width: 0;
+  }
+  #sheets {
+    padding: 2px;
+  }
+  .product-grid {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, max(150px, calc(100% / var(--print-columns, 3)))), 1fr));
+  }
 }
